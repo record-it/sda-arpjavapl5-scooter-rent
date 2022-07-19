@@ -22,50 +22,18 @@ public class Application {
                 List.of(
                         MenuItem.builder()
                                 .label("Dodaj skuter")
-                                .action(() -> {
-                                    System.out.println("Podaj identyfikator:");
-                                    String identyfikator = scanner.nextLine();
-                                    System.out.println("Podaj model");
-                                    final String model = scanner.nextLine();
-                                    final Scooter scooter = Scooter
-                                            .builder()
-                                            .model(model)
-                                            .identifier(identyfikator)
-                                            .build();
-                                    scooters.save(scooter);
-                                })
+                                .action(Application::addScooter)
                                 .build(),
                         MenuItem.builder()
                                 .label("Usuń skuter")
-                                .action(() ->{
-                                    //uzupełnij lambe o
-                                    //1. pytanie o id usuwanego skutera
-                                    //2. Wczytanie id typu long
-                                    //3. Usunięcie z bazy skutera o podanym id
-                                    System.out.println("podaj ID skutera do usuniecia:");
-                                    long id = scanner.nextLong();
-                                    Optional<Scooter> scooter = scooters.findById(id);
-                                    if (scooter.isPresent()){
-                                        scooters.delete(scooter.get().getId());
-                                    }
-                                })
+                                .action(Application::deleteScooter)
                                 .build(),
                         MenuItem.builder()
                                 .label("Lista skuterów")
-                                .action(() -> {
-                                    final Optional<List<Scooter>> allScooters = scooters.resultTransaction(em -> {
-                                        final List<Scooter> list = em.createQuery("from Scooter", Scooter.class).getResultList();
-                                        return list;
-                                    });
-                                    if (allScooters.isPresent()) {
-                                        allScooters.get().forEach(System.out::println);
-                                    }
-                                })
+                                .action(Application::scootersList)
                                 .build(),
                         MenuItem.builder()
-                                .action(() -> {
-
-                                })
+                                .action(Application::addUser)
                                 .label("Dodaj użytkownika").build(),
                         MenuItem.builder()
                                 .action(() -> {
@@ -74,13 +42,64 @@ public class Application {
                                 .label("Wynajmij").build(),
                         MenuItem.builder()
                                 .label("Koniec")
-                                .action(() -> {
-                                    System.exit(0);
-                                })
+                                .action(Application::exit)
                                 .build()
                 )
         );
         controller = new MenuController(scanner, menu);
         controller.processLoop();
+    }
+
+    private static void exit() {
+        System.exit(0);
+    }
+
+    private static void addUser() {
+        System.out.println("Podaj email:");
+        String email = scanner.nextLine();
+        System.out.println("Podaj hasło:");
+        final String password = scanner.nextLine();
+        final User user = User
+                .builder()
+                .email(email)
+                .password(password)
+                .build();
+        users.save(user);
+    }
+
+    private static void scootersList() {
+        final Optional<List<Scooter>> allScooters = scooters.resultTransaction(em -> {
+            final List<Scooter> list = em.createQuery("from Scooter", Scooter.class).getResultList();
+            return list;
+        });
+        if (allScooters.isPresent()) {
+            allScooters.get().forEach(System.out::println);
+        }
+    }
+
+    private static void deleteScooter() {
+        //uzupełnij lambe o
+        //1. pytanie o id usuwanego skutera
+        //2. Wczytanie id typu long
+        //3. Usunięcie z bazy skutera o podanym id
+        System.out.println("podaj ID skutera do usuniecia:");
+        long id = scanner.nextLong();
+        Optional<Scooter> scooter = scooters.findById(id);
+        if (scooter.isPresent()){
+            scooters.delete(scooter.get().getId());
+        }
+    }
+
+    private static void addScooter() {
+        System.out.println("Podaj identyfikator:");
+        String identyfikator = scanner.nextLine();
+        System.out.println("Podaj model");
+        final String model = scanner.nextLine();
+        final Scooter scooter = Scooter
+                .builder()
+                .model(model)
+                .identifier(identyfikator)
+                .build();
+        scooters.save(scooter);
     }
 }
