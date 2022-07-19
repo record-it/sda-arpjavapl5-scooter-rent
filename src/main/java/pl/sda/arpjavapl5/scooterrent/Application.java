@@ -18,11 +18,12 @@ public class Application {
     static Scanner scanner = new Scanner(System.in);
     static CrudDao<Scooter, Long> scooters = new CrudDao<>("scooter-rent", Scooter.class);
     static CrudDao<User, Long> users = new CrudDao<>("scooter-rent", User.class);
-    
+
     static CrudDao<Rent, Long> rents = new CrudDao<>("scooter-rent", Rent.class);
     static MenuController controller;
 
     public static void main(String[] args) {
+        seedTestData();
         Menu menu = new Menu(
                 List.of(
                         MenuItem.builder()
@@ -44,6 +45,14 @@ public class Application {
                                 .action(Application::rentScooter)
                                 .label("Wynajmij").build(),
                         MenuItem.builder()
+                                .label("Lista wynajęć")
+                                .action(Application::rentsList)
+                                .build(),
+                        MenuItem.builder()
+                                .label("Zwrot")
+                                .action(Application::closeScooterRent)
+                                .build(),
+                        MenuItem.builder()
                                 .label("Koniec")
                                 .action(Application::exit)
                                 .build()
@@ -53,7 +62,53 @@ public class Application {
         controller.processLoop();
     }
 
-    private static void rentScooter(){
+    private static void seedTestData(){
+        scooters.save(Scooter.builder().model("Honda").identifier("ABC12").build());
+        scooters.save(Scooter.builder().model("Honda").identifier("ABC13").available(false).build());
+        scooters.save(Scooter.builder().model("Honda").identifier("ABC14").build());
+        users.save(User.builder().email("adam@sda.pl").password("1234").build());
+        users.save(User.builder().email("ewa@sda.pl").password("abcd").build());
+        rents.save(
+                Rent
+                        .builder()
+                        .pricePerMinute(new BigDecimal(2))
+                        .startOn(LocalDateTime.now())
+                        .user(users.findById(1L).get())
+                        .scooter(scooters.findById(2L).get())
+                        .build()
+        );
+        rents.save(
+                Rent
+                        .builder()
+                        .pricePerMinute(new BigDecimal(2))
+                        .startOn(LocalDateTime.of(2022,7,18,20,45))
+                        .endOn(LocalDateTime.of(2022,7,18,21,35))
+                        .user(users.findById(2L).get())
+                        .scooter(scooters.findById(3L).get())
+                        .build()
+        );
+    }
+
+    private static void closeScooterRent(){
+        System.out.println("Podaj id umowy najmu zwracanej hulajnogi");
+        long idRent = scanner.nextLong();
+        scooters.transaction(em -> {
+            final Rent rent = em.find(Rent.class, idRent);
+            if (rent == null){
+                System.out.println("Brak takiej umowy");
+                return;
+            }
+            if (rent.getEndOn() != null){
+                System.out.println("Umowa już została zamknięta");
+                return;
+            }
+            rent.setEndOn(LocalDateTime.now());
+            rent.getScooter().setAvailable(true);
+            System.out.println("Zamknięcie umowy powiodło się");
+        });
+    }
+
+    private static void rentScooter() {
         System.out.println("Podaj id skutera:");
         long idScooter = scanner.nextLong();
         System.out.println("Podaj id użytkownika:");
@@ -87,15 +142,15 @@ public class Application {
             //koniec transakcji
         });
     }
-    
-    private static void rentsList(){
+
+    private static void rentsList() {
         final Optional<List<Rent>> list = rents
-                .resultTransaction(em -> em.createQuery("from Rent ", Rent.class).getResultList());
-        if (list.isPresent()){
+                .resultTransaction(em -> em.createQuery("from Rent r where r.endOn is null", Rent.class).getResultList());
+        if (list.isPresent()) {
             list.get().forEach(System.out::println);
         }
     }
-    
+
     private static void exit() {
         System.exit(0);
     }
@@ -131,7 +186,7 @@ public class Application {
         System.out.println("podaj ID skutera do usuniecia:");
         long id = scanner.nextLong();
         Optional<Scooter> scooter = scooters.findById(id);
-        if (scooter.isPresent()){
+        if (scooter.isPresent()) {
             scooters.delete(scooter.get().getId());
         }
     }
