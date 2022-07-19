@@ -4,9 +4,12 @@ import pl.sda.arpjavapl5.scooterrent.controller.Menu;
 import pl.sda.arpjavapl5.scooterrent.controller.MenuController;
 import pl.sda.arpjavapl5.scooterrent.controller.MenuItem;
 import pl.sda.arpjavapl5.scooterrent.dao.CrudDao;
+import pl.sda.arpjavapl5.scooterrent.entity.Rent;
 import pl.sda.arpjavapl5.scooterrent.entity.Scooter;
 import pl.sda.arpjavapl5.scooterrent.entity.User;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Scanner;
@@ -15,6 +18,8 @@ public class Application {
     static Scanner scanner = new Scanner(System.in);
     static CrudDao<Scooter, Long> scooters = new CrudDao<>("scooter-rent", Scooter.class);
     static CrudDao<User, Long> users = new CrudDao<>("scooter-rent", User.class);
+    
+    static CrudDao<Rent, Long> rents = new CrudDao<>("scooter-rent", Rent.class);
     static MenuController controller;
 
     public static void main(String[] args) {
@@ -36,9 +41,7 @@ public class Application {
                                 .action(Application::addUser)
                                 .label("Dodaj użytkownika").build(),
                         MenuItem.builder()
-                                .action(() -> {
-
-                                })
+                                .action(Application::rentScooter)
                                 .label("Wynajmij").build(),
                         MenuItem.builder()
                                 .label("Koniec")
@@ -50,6 +53,49 @@ public class Application {
         controller.processLoop();
     }
 
+    private static void rentScooter(){
+        System.out.println("Podaj id skutera:");
+        long idScooter = scanner.nextLong();
+        System.out.println("Podaj id użytkownika:");
+        long idUser = scanner.nextLong();
+        //początek transakcji
+        scooters.transaction(em -> {
+            final Optional<Scooter> scooterOp = Optional.ofNullable(em.find(Scooter.class, idScooter));
+            final Optional<User> userOp = Optional.ofNullable(em.find(User.class, idUser));
+            if (!scooterOp.isPresent()) {
+                System.out.println("Brak takiej hulajnogi, wynajęcie niemożliwe!");
+                return;
+            }
+            if (!userOp.isPresent()) {
+                System.out.println("Brak takiego użytkownika, wynajęcie niemożliwe!");
+                return;
+            }
+            final Scooter scooter = scooterOp.get();
+            final User user = userOp.get();
+            if (!scooter.isAvailable()) {
+                System.out.println("Hulajnoga jest aktualnie wynajęta przez innego użytkownika, wynajęcie nie możliwe");
+                return;
+            }
+            scooter.setAvailable(false);
+            final Rent rent = Rent.builder()
+                    .user(user)
+                    .scooter(scooter)
+                    .pricePerMinute(new BigDecimal(2))
+                    .startOn(LocalDateTime.now())
+                    .build();
+            em.persist(rent);
+            //koniec transakcji
+        });
+    }
+    
+    private static void rentsList(){
+        final Optional<List<Rent>> list = rents
+                .resultTransaction(em -> em.createQuery("from Rent ", Rent.class).getResultList());
+        if (list.isPresent()){
+            list.get().forEach(System.out::println);
+        }
+    }
+    
     private static void exit() {
         System.exit(0);
     }

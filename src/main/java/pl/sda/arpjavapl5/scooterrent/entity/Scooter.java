@@ -18,4 +18,7 @@ public class Scooter extends BaseEntity {
     private String identifier;
 
     private String model;
+
+    @Builder.Default
+    private boolean available = true;
 }

@@ -1,6 +1,7 @@
 package pl.sda.arpjavapl5.scooterrent.entity;
 
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 
 import javax.persistence.Entity;
 import javax.persistence.ManyToMany;
