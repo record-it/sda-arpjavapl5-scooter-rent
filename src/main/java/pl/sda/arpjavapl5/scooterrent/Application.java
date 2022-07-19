@@ -7,9 +7,12 @@ import pl.sda.arpjavapl5.scooterrent.dao.CrudDao;
 import pl.sda.arpjavapl5.scooterrent.entity.Rent;
 import pl.sda.arpjavapl5.scooterrent.entity.Scooter;
 import pl.sda.arpjavapl5.scooterrent.entity.User;
+import pl.sda.arpjavapl5.scooterrent.exception.RollbackException;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.Period;
 import java.util.List;
 import java.util.Optional;
 import java.util.Scanner;
@@ -72,7 +75,7 @@ public class Application {
                 Rent
                         .builder()
                         .pricePerMinute(new BigDecimal(2))
-                        .startOn(LocalDateTime.now())
+                        .startOn(LocalDateTime.of(2022,7,19,17,45))
                         .user(users.findById(1L).get())
                         .scooter(scooters.findById(2L).get())
                         .build()
@@ -102,7 +105,16 @@ public class Application {
                 System.out.println("Umowa już została zamknięta");
                 return;
             }
+            BigDecimal totalCost = null;
+
             rent.setEndOn(LocalDateTime.now());
+
+            //Oblicz totalCost na podstawie czasu wynajęcia i ceny w polu pricePerMinute
+            Duration duration = Duration.between(rent.getStartOn(), rent.getEndOn());
+            System.out.println(duration.toMinutes());
+            totalCost = rent.getPricePerMinute().multiply(new BigDecimal(duration.toMinutes()));
+            System.out.println(totalCost);
+            rent.setTotalCost(totalCost);
             rent.getScooter().setAvailable(true);
             System.out.println("Zamknięcie umowy powiodło się");
         });
@@ -139,7 +151,9 @@ public class Application {
                     .startOn(LocalDateTime.now())
                     .build();
             em.persist(rent);
-            //koniec transakcji
+            if (!user.isActive()){
+                throw new RollbackException("Użytkownik nieaktywny nie może zawierać umów!");
+            }
         });
     }
 
